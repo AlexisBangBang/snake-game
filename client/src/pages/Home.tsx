@@ -47,114 +47,155 @@ export default function Home() {
   });
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Draw snake segment with smooth edges
-  const drawSnakeSegment = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    isHead: boolean,
-    direction: Position
-  ) => {
-    const centerX = x * CELL_SIZE + CELL_SIZE / 2;
-    const centerY = y * CELL_SIZE + CELL_SIZE / 2;
+  // Draw smooth connected snake body
+  const drawSnake = (ctx: CanvasRenderingContext2D, state: GameState) => {
+    const snake = state.snake;
+    if (snake.length === 0) return;
+
     const radius = CELL_SIZE / 2 - 2;
 
-    if (isHead) {
-      // Draw snake head with gradient
-      const gradient = ctx.createRadialGradient(
-        centerX - 2,
-        centerY - 2,
-        0,
-        centerX,
-        centerY,
-        radius
-      );
-      gradient.addColorStop(0, "#4ade80"); // Bright green
-      gradient.addColorStop(1, "#15803d"); // Dark green
+    // Draw snake body segments with smooth connections
+    for (let i = 0; i < snake.length; i++) {
+      const segment = snake[i];
+      const centerX = segment.x * CELL_SIZE + CELL_SIZE / 2;
+      const centerY = segment.y * CELL_SIZE + CELL_SIZE / 2;
 
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      ctx.fill();
+      // Determine segment color based on position
+      let hueShift = (i / snake.length) * 0.3; // Slight color variation along body
+      let brightness = 1 - hueShift * 0.5;
 
-      // Draw snake eyes
-      ctx.fillStyle = "#000000";
-      const eyeOffset = radius * 0.4;
-      const eyeRadius = radius * 0.2;
+      if (i === 0) {
+        // Head - brightest green
+        const gradient = ctx.createRadialGradient(
+          centerX - 2,
+          centerY - 2,
+          0,
+          centerX,
+          centerY,
+          radius
+        );
+        gradient.addColorStop(0, "#4ade80");
+        gradient.addColorStop(1, "#15803d");
+        ctx.fillStyle = gradient;
+      } else {
+        // Body - gradient from bright to darker green
+        const bodyBrightness = 1 - (i / snake.length) * 0.4;
+        const gradient = ctx.createRadialGradient(
+          centerX - 1,
+          centerY - 1,
+          0,
+          centerX,
+          centerY,
+          radius
+        );
 
-      // Calculate eye positions based on direction
-      let eyeX1 = centerX;
-      let eyeY1 = centerY;
-      let eyeX2 = centerX;
-      let eyeY2 = centerY;
+        if (bodyBrightness > 0.7) {
+          gradient.addColorStop(0, "#22c55e");
+          gradient.addColorStop(1, "#16a34a");
+        } else if (bodyBrightness > 0.4) {
+          gradient.addColorStop(0, "#16a34a");
+          gradient.addColorStop(1, "#15803d");
+        } else {
+          gradient.addColorStop(0, "#15803d");
+          gradient.addColorStop(1, "#0d3d1a");
+        }
 
-      if (direction.x === 1) {
-        // Moving right
-        eyeX1 = centerX + eyeOffset;
-        eyeY1 = centerY - eyeOffset * 0.5;
-        eyeX2 = centerX + eyeOffset;
-        eyeY2 = centerY + eyeOffset * 0.5;
-      } else if (direction.x === -1) {
-        // Moving left
-        eyeX1 = centerX - eyeOffset;
-        eyeY1 = centerY - eyeOffset * 0.5;
-        eyeX2 = centerX - eyeOffset;
-        eyeY2 = centerY + eyeOffset * 0.5;
-      } else if (direction.y === -1) {
-        // Moving up
-        eyeX1 = centerX - eyeOffset * 0.5;
-        eyeY1 = centerY - eyeOffset;
-        eyeX2 = centerX + eyeOffset * 0.5;
-        eyeY2 = centerY - eyeOffset;
-      } else if (direction.y === 1) {
-        // Moving down
-        eyeX1 = centerX - eyeOffset * 0.5;
-        eyeY1 = centerY + eyeOffset;
-        eyeX2 = centerX + eyeOffset * 0.5;
-        eyeY2 = centerY + eyeOffset;
+        ctx.fillStyle = gradient;
       }
 
-      ctx.beginPath();
-      ctx.arc(eyeX1, eyeY1, eyeRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(eyeX2, eyeY2, eyeRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Add shine effect
-      ctx.fillStyle = "#ffffff";
-      ctx.globalAlpha = 0.6;
-      ctx.beginPath();
-      ctx.arc(centerX - radius * 0.3, centerY - radius * 0.3, radius * 0.25, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    } else {
-      // Draw snake body with gradient
-      const gradient = ctx.createRadialGradient(
-        centerX - 1,
-        centerY - 1,
-        0,
-        centerX,
-        centerY,
-        radius
-      );
-      gradient.addColorStop(0, "#22c55e"); // Medium green
-      gradient.addColorStop(1, "#16a34a"); // Dark green
-
-      ctx.fillStyle = gradient;
+      // Draw circle for this segment
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       ctx.fill();
 
-      // Add subtle shine
-      ctx.fillStyle = "#ffffff";
-      ctx.globalAlpha = 0.3;
-      ctx.beginPath();
-      ctx.arc(centerX - radius * 0.3, centerY - radius * 0.3, radius * 0.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      // Draw connecting lines between segments for smooth appearance
+      if (i < snake.length - 1) {
+        const nextSegment = snake[i + 1];
+        const nextCenterX = nextSegment.x * CELL_SIZE + CELL_SIZE / 2;
+        const nextCenterY = nextSegment.y * CELL_SIZE + CELL_SIZE / 2;
+
+        // Calculate the color for the connection
+        if (i === 0) {
+          ctx.strokeStyle = "#4ade80";
+        } else {
+          const bodyBrightness = 1 - (i / snake.length) * 0.4;
+          if (bodyBrightness > 0.7) {
+            ctx.strokeStyle = "#22c55e";
+          } else if (bodyBrightness > 0.4) {
+            ctx.strokeStyle = "#16a34a";
+          } else {
+            ctx.strokeStyle = "#15803d";
+          }
+        }
+
+        ctx.lineWidth = radius * 2;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(nextCenterX, nextCenterY);
+        ctx.stroke();
+      }
     }
+
+    // Draw snake head with eyes
+    const head = snake[0];
+    const headCenterX = head.x * CELL_SIZE + CELL_SIZE / 2;
+    const headCenterY = head.y * CELL_SIZE + CELL_SIZE / 2;
+
+    // Draw eyes
+    ctx.fillStyle = "#000000";
+    const eyeOffset = radius * 0.4;
+    const eyeRadius = radius * 0.2;
+
+    let eyeX1 = headCenterX;
+    let eyeY1 = headCenterY;
+    let eyeX2 = headCenterX;
+    let eyeY2 = headCenterY;
+
+    if (state.direction.x === 1) {
+      eyeX1 = headCenterX + eyeOffset;
+      eyeY1 = headCenterY - eyeOffset * 0.5;
+      eyeX2 = headCenterX + eyeOffset;
+      eyeY2 = headCenterY + eyeOffset * 0.5;
+    } else if (state.direction.x === -1) {
+      eyeX1 = headCenterX - eyeOffset;
+      eyeY1 = headCenterY - eyeOffset * 0.5;
+      eyeX2 = headCenterX - eyeOffset;
+      eyeY2 = headCenterY + eyeOffset * 0.5;
+    } else if (state.direction.y === -1) {
+      eyeX1 = headCenterX - eyeOffset * 0.5;
+      eyeY1 = headCenterY - eyeOffset;
+      eyeX2 = headCenterX + eyeOffset * 0.5;
+      eyeY2 = headCenterY - eyeOffset;
+    } else if (state.direction.y === 1) {
+      eyeX1 = headCenterX - eyeOffset * 0.5;
+      eyeY1 = headCenterY + eyeOffset;
+      eyeX2 = headCenterX + eyeOffset * 0.5;
+      eyeY2 = headCenterY + eyeOffset;
+    }
+
+    ctx.beginPath();
+    ctx.arc(eyeX1, eyeY1, eyeRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(eyeX2, eyeY2, eyeRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Add shine effect on head
+    ctx.fillStyle = "#ffffff";
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.arc(
+      headCenterX - radius * 0.3,
+      headCenterY - radius * 0.3,
+      radius * 0.25,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    ctx.globalAlpha = 1;
   };
 
   // Draw bean-like food
@@ -179,9 +220,9 @@ export default function Home() {
       centerY,
       Math.max(radiusX, radiusY)
     );
-    gradient.addColorStop(0, "#fbbf24"); // Bright yellow
-    gradient.addColorStop(0.5, "#f59e0b"); // Orange
-    gradient.addColorStop(1, "#d97706"); // Dark orange
+    gradient.addColorStop(0, "#fbbf24");
+    gradient.addColorStop(0.5, "#f59e0b");
+    gradient.addColorStop(1, "#d97706");
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -192,7 +233,15 @@ export default function Home() {
     ctx.fillStyle = "#ffffff";
     ctx.globalAlpha = 0.5;
     ctx.beginPath();
-    ctx.ellipse(centerX - radiusX * 0.4, centerY - radiusY * 0.4, radiusX * 0.3, radiusY * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(
+      centerX - radiusX * 0.4,
+      centerY - radiusY * 0.4,
+      radiusX * 0.3,
+      radiusY * 0.2,
+      0,
+      0,
+      Math.PI * 2
+    );
     ctx.fill();
     ctx.globalAlpha = 1;
 
@@ -214,9 +263,9 @@ export default function Home() {
 
     // Draw background with gradient
     const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    bgGradient.addColorStop(0, "#1a4d2e"); // Dark green
-    bgGradient.addColorStop(0.5, "#2d6a4f"); // Medium green
-    bgGradient.addColorStop(1, "#1a4d2e"); // Dark green
+    bgGradient.addColorStop(0, "#1a4d2e");
+    bgGradient.addColorStop(0.5, "#2d6a4f");
+    bgGradient.addColorStop(1, "#1a4d2e");
 
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -240,10 +289,7 @@ export default function Home() {
     drawFood(ctx, state.food.x, state.food.y);
 
     // Draw snake
-    state.snake.forEach((segment, index) => {
-      const isHead = index === 0;
-      drawSnakeSegment(ctx, segment.x, segment.y, isHead, state.direction);
-    });
+    drawSnake(ctx, state);
 
     // Draw pause overlay
     if (state.isPaused && !state.gameOver) {

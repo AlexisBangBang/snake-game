@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Play, Pause, RotateCcw } from "lucide-react";
 
 /**
- * Design Philosophy: Retro Gaming Arcade
- * - Bold, high-contrast colors reminiscent of classic arcade games
- * - Pixelated aesthetic with clean grid-based layout
- * - Smooth animations and responsive feedback
- * - High visibility and clear game state indicators
+ * Design Philosophy: Nature-Inspired Gaming
+ * - Realistic snake with smooth curves and natural coloring
+ * - Organic bean-like food design with visual depth
+ * - Lush green garden background aesthetic
+ * - Smooth animations and visual feedback
  */
 
 const GRID_SIZE = 20;
@@ -47,6 +47,163 @@ export default function Home() {
   });
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Draw snake segment with smooth edges
+  const drawSnakeSegment = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    isHead: boolean,
+    direction: Position
+  ) => {
+    const centerX = x * CELL_SIZE + CELL_SIZE / 2;
+    const centerY = y * CELL_SIZE + CELL_SIZE / 2;
+    const radius = CELL_SIZE / 2 - 2;
+
+    if (isHead) {
+      // Draw snake head with gradient
+      const gradient = ctx.createRadialGradient(
+        centerX - 2,
+        centerY - 2,
+        0,
+        centerX,
+        centerY,
+        radius
+      );
+      gradient.addColorStop(0, "#4ade80"); // Bright green
+      gradient.addColorStop(1, "#15803d"); // Dark green
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw snake eyes
+      ctx.fillStyle = "#000000";
+      const eyeOffset = radius * 0.4;
+      const eyeRadius = radius * 0.2;
+
+      // Calculate eye positions based on direction
+      let eyeX1 = centerX;
+      let eyeY1 = centerY;
+      let eyeX2 = centerX;
+      let eyeY2 = centerY;
+
+      if (direction.x === 1) {
+        // Moving right
+        eyeX1 = centerX + eyeOffset;
+        eyeY1 = centerY - eyeOffset * 0.5;
+        eyeX2 = centerX + eyeOffset;
+        eyeY2 = centerY + eyeOffset * 0.5;
+      } else if (direction.x === -1) {
+        // Moving left
+        eyeX1 = centerX - eyeOffset;
+        eyeY1 = centerY - eyeOffset * 0.5;
+        eyeX2 = centerX - eyeOffset;
+        eyeY2 = centerY + eyeOffset * 0.5;
+      } else if (direction.y === -1) {
+        // Moving up
+        eyeX1 = centerX - eyeOffset * 0.5;
+        eyeY1 = centerY - eyeOffset;
+        eyeX2 = centerX + eyeOffset * 0.5;
+        eyeY2 = centerY - eyeOffset;
+      } else if (direction.y === 1) {
+        // Moving down
+        eyeX1 = centerX - eyeOffset * 0.5;
+        eyeY1 = centerY + eyeOffset;
+        eyeX2 = centerX + eyeOffset * 0.5;
+        eyeY2 = centerY + eyeOffset;
+      }
+
+      ctx.beginPath();
+      ctx.arc(eyeX1, eyeY1, eyeRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(eyeX2, eyeY2, eyeRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Add shine effect
+      ctx.fillStyle = "#ffffff";
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.arc(centerX - radius * 0.3, centerY - radius * 0.3, radius * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else {
+      // Draw snake body with gradient
+      const gradient = ctx.createRadialGradient(
+        centerX - 1,
+        centerY - 1,
+        0,
+        centerX,
+        centerY,
+        radius
+      );
+      gradient.addColorStop(0, "#22c55e"); // Medium green
+      gradient.addColorStop(1, "#16a34a"); // Dark green
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Add subtle shine
+      ctx.fillStyle = "#ffffff";
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.arc(centerX - radius * 0.3, centerY - radius * 0.3, radius * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  };
+
+  // Draw bean-like food
+  const drawFood = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    const centerX = x * CELL_SIZE + CELL_SIZE / 2;
+    const centerY = y * CELL_SIZE + CELL_SIZE / 2;
+    const radiusX = CELL_SIZE / 2.5;
+    const radiusY = CELL_SIZE / 3;
+
+    // Draw bean shadow
+    ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+    ctx.beginPath();
+    ctx.ellipse(centerX + 1, centerY + 2, radiusX - 1, radiusY - 1, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw bean with gradient
+    const gradient = ctx.createRadialGradient(
+      centerX - radiusX * 0.3,
+      centerY - radiusY * 0.3,
+      0,
+      centerX,
+      centerY,
+      Math.max(radiusX, radiusY)
+    );
+    gradient.addColorStop(0, "#fbbf24"); // Bright yellow
+    gradient.addColorStop(0.5, "#f59e0b"); // Orange
+    gradient.addColorStop(1, "#d97706"); // Dark orange
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Add shine effect to bean
+    ctx.fillStyle = "#ffffff";
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.ellipse(centerX - radiusX * 0.4, centerY - radiusY * 0.4, radiusX * 0.3, radiusY * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Draw bean indent line
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, Math.min(radiusX, radiusY) * 0.6, Math.PI * 0.3, Math.PI * 1.7);
+    ctx.stroke();
+  };
+
   // Initialize canvas and draw
   const draw = (state: GameState) => {
     const canvas = canvasRef.current;
@@ -55,12 +212,17 @@ export default function Home() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear canvas
-    ctx.fillStyle = "#0f172a"; // Dark slate background
+    // Draw background with gradient
+    const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bgGradient.addColorStop(0, "#1a4d2e"); // Dark green
+    bgGradient.addColorStop(0.5, "#2d6a4f"); // Medium green
+    bgGradient.addColorStop(1, "#1a4d2e"); // Dark green
+
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw grid
-    ctx.strokeStyle = "#1e293b";
+    // Draw subtle grass pattern
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
     ctx.lineWidth = 0.5;
     for (let i = 0; i <= GRID_SIZE; i++) {
       ctx.beginPath();
@@ -74,39 +236,14 @@ export default function Home() {
       ctx.stroke();
     }
 
+    // Draw food first (behind snake)
+    drawFood(ctx, state.food.x, state.food.y);
+
     // Draw snake
     state.snake.forEach((segment, index) => {
-      if (index === 0) {
-        // Head - bright green
-        ctx.fillStyle = "#22c55e";
-        ctx.shadowColor = "#16a34a";
-        ctx.shadowBlur = 8;
-      } else {
-        // Body - darker green
-        ctx.fillStyle = "#16a34a";
-        ctx.shadowColor = "transparent";
-      }
-      ctx.fillRect(
-        segment.x * CELL_SIZE + 1,
-        segment.y * CELL_SIZE + 1,
-        CELL_SIZE - 2,
-        CELL_SIZE - 2
-      );
+      const isHead = index === 0;
+      drawSnakeSegment(ctx, segment.x, segment.y, isHead, state.direction);
     });
-
-    // Draw food - bright red
-    ctx.fillStyle = "#ef4444";
-    ctx.shadowColor = "#dc2626";
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.arc(
-      state.food.x * CELL_SIZE + CELL_SIZE / 2,
-      state.food.y * CELL_SIZE + CELL_SIZE / 2,
-      CELL_SIZE / 2 - 2,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
 
     // Draw pause overlay
     if (state.isPaused && !state.gameOver) {
@@ -123,7 +260,7 @@ export default function Home() {
     if (state.gameOver) {
       ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#ef4444";
+      ctx.fillStyle = "#fbbf24";
       ctx.font = "bold 40px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -273,34 +410,34 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-green-800 to-emerald-900 flex flex-col items-center justify-center p-4">
       {/* Header */}
       <div className="mb-8 text-center">
-        <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mb-2">
-          🐍 SNAKE GAME
+        <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400 mb-2 drop-shadow-lg">
+          🐍 贪吃蛇
         </h1>
-        <p className="text-slate-400 text-lg">经典贪吃蛇游戏</p>
+        <p className="text-emerald-100 text-lg font-medium">吃掉所有的豆子！</p>
       </div>
 
       {/* Game Container */}
-      <div className="bg-slate-800 rounded-lg shadow-2xl border-2 border-slate-700 overflow-hidden mb-8">
+      <div className="bg-emerald-950 rounded-2xl shadow-2xl border-4 border-emerald-700 overflow-hidden mb-8 hover:shadow-emerald-500/50 transition-shadow">
         <canvas
           ref={canvasRef}
           width={GRID_SIZE * CELL_SIZE}
           height={GRID_SIZE * CELL_SIZE}
-          className="block bg-slate-950"
+          className="block bg-gradient-to-br from-emerald-900 to-green-900"
         />
       </div>
 
       {/* Score Display */}
       <div className="flex gap-8 mb-8 text-center">
-        <div className="bg-slate-800 rounded-lg px-6 py-4 border border-slate-700">
-          <p className="text-slate-400 text-sm font-semibold uppercase tracking-wider">当前分数</p>
-          <p className="text-3xl font-bold text-green-400 mt-1">{gameState.score}</p>
+        <div className="bg-gradient-to-br from-emerald-800 to-emerald-900 rounded-xl px-6 py-4 border-2 border-emerald-600 shadow-lg">
+          <p className="text-emerald-200 text-sm font-semibold uppercase tracking-wider">当前分数</p>
+          <p className="text-4xl font-bold text-yellow-300 mt-2">{gameState.score}</p>
         </div>
-        <div className="bg-slate-800 rounded-lg px-6 py-4 border border-slate-700">
-          <p className="text-slate-400 text-sm font-semibold uppercase tracking-wider">最高分</p>
-          <p className="text-3xl font-bold text-amber-400 mt-1">{highScore}</p>
+        <div className="bg-gradient-to-br from-emerald-800 to-emerald-900 rounded-xl px-6 py-4 border-2 border-emerald-600 shadow-lg">
+          <p className="text-emerald-200 text-sm font-semibold uppercase tracking-wider">最高分</p>
+          <p className="text-4xl font-bold text-amber-300 mt-2">{highScore}</p>
         </div>
       </div>
 
@@ -309,7 +446,7 @@ export default function Home() {
         <Button
           onClick={togglePause}
           disabled={gameState.gameOver}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg flex items-center gap-2 transition-all"
+          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold px-6 py-3 rounded-lg flex items-center gap-2 transition-all shadow-lg disabled:opacity-50"
         >
           {gameState.isPaused ? (
             <>
@@ -323,23 +460,23 @@ export default function Home() {
         </Button>
         <Button
           onClick={resetGame}
-          className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded-lg flex items-center gap-2 transition-all"
+          className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold px-6 py-3 rounded-lg flex items-center gap-2 transition-all shadow-lg"
         >
           <RotateCcw size={20} /> 重新开始
         </Button>
       </div>
 
       {/* Instructions */}
-      <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 max-w-md text-center">
-        <p className="text-slate-300 text-sm mb-4">
-          <span className="font-semibold text-green-400">方向键</span> 或{" "}
-          <span className="font-semibold text-green-400">WASD</span> 控制蛇的移动
+      <div className="bg-gradient-to-br from-emerald-800 to-emerald-900 rounded-xl p-6 border-2 border-emerald-600 max-w-md text-center shadow-lg">
+        <p className="text-emerald-100 text-sm mb-4">
+          <span className="font-bold text-yellow-300">方向键</span> 或{" "}
+          <span className="font-bold text-yellow-300">WASD</span> 控制蛇的移动
         </p>
-        <p className="text-slate-300 text-sm mb-4">
-          按 <span className="font-semibold text-blue-400">空格</span> 暂停/继续游戏
+        <p className="text-emerald-100 text-sm mb-4">
+          按 <span className="font-bold text-blue-300">空格</span> 暂停/继续游戏
         </p>
-        <p className="text-slate-400 text-xs">
-          吃掉红色食物增加长度和分数，撞到墙壁或自身则游戏结束
+        <p className="text-emerald-200 text-xs">
+          🐍 吃掉黄色豆子增加长度和分数，撞到墙壁或自身则游戏结束
         </p>
       </div>
     </div>
